@@ -1,6 +1,44 @@
 const Task = require('../models/Task');
+const { cloudinary } = require('../config/cloudinary');
 const { sendTaskCreationEmail, sendTaskCompletionEmail } = require('../utils/emailService');
 const { getWeatherByCity } = require('../utils/weatherService');
+
+// Upload buffer stream helper for memory fallback
+const uploadBufferToCloudinary = (fileBuffer) => {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: 'task-attachments', resource_type: 'auto' },
+      (error, result) => {
+        if (result) resolve(result.secure_url);
+        else reject(error);
+      }
+    );
+    uploadStream.end(fileBuffer);
+  });
+};
+
+// Helper to extract file URL from req.file
+const processUploadedFile = async (file) => {
+  if (!file) return null;
+
+  if (file.path || file.secure_url || file.url) {
+    return file.path || file.secure_url || file.url;
+  }
+
+  if (file.buffer) {
+    try {
+      const cloudinaryUrl = await uploadBufferToCloudinary(file.buffer);
+      return cloudinaryUrl;
+    } catch (err) {
+      console.error('Cloudinary Stream Upload Error:', err.message || err);
+      // Data URL fallback if Cloudinary stream errors out
+      const base64Data = file.buffer.toString('base64');
+      return `data:${file.mimetype};base64,${base64Data}`;
+    }
+  }
+
+  return null;
+};
 
 // @desc    Get logged-in user tasks with filtering & pagination
 // @route   GET /api/tasks
@@ -9,7 +47,6 @@ const getTasks = async (req, res) => {
   try {
     const { page = 1, limit = 10, status, priority, search, startDate, endDate } = req.query;
 
-    // Filter tasks strictly by logged-in user ID
     const query = { user: req.user._id };
 
     if (status) query.status = status;
@@ -32,7 +69,6 @@ const getTasks = async (req, res) => {
     const numericLimit = Math.max(1, Number(limit));
     const skip = (numericPage - 1) * numericLimit;
 
-    // Run task query and count in parallel
     const [tasks, total] = await Promise.all([
       Task.find(query)
         .sort({ createdAt: -1 })
@@ -41,7 +77,6 @@ const getTasks = async (req, res) => {
       Task.countDocuments(query),
     ]);
 
-    // Attach live weather data if task has location
     const tasksWithWeather = await Promise.all(
       tasks.map(async (taskDoc) => {
         const taskObj = taskDoc.toObject();
@@ -61,6 +96,7 @@ const getTasks = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('Get Tasks Error:', error);
     res.status(500).json({ message: 'Failed to fetch tasks', error: error.message });
   }
 };
@@ -98,11 +134,7 @@ const createTask = async (req, res) => {
       return res.status(400).json({ message: 'Task title is required' });
     }
 
-    // Extract file attachment URL if uploaded from Cloudinary / Multer
-    let fileUrl = null;
-    if (req.file) {
-      fileUrl = req.file.path || req.file.secure_url || req.file.url || req.file.location;
-    }
+    const fileUrl = await processUploadedFile(req.file);
 
     const task = await Task.create({
       user: req.user._id,
@@ -110,12 +142,11 @@ const createTask = async (req, res) => {
       description,
       status,
       priority,
-      dueDate,
+      dueDate: dueDate || undefined,
       location,
       fileUrl,
     });
 
-    // Dispatch background email notification
     sendTaskCreationEmail(req.user.email, task);
 
     const taskObj = task.toObject();
@@ -125,7 +156,8 @@ const createTask = async (req, res) => {
 
     res.status(201).json(taskObj);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create task', error: error.message });
+    console.error('Create Task Error:', error);
+    res.status(400).json({ message: 'Failed to create task', error: error.message });
   }
 };
 
@@ -147,16 +179,18 @@ const updateTask = async (req, res) => {
     if (description !== undefined) task.description = description;
     if (status) task.status = status;
     if (priority) task.priority = priority;
-    if (dueDate !== undefined) task.dueDate = dueDate;
+    if (dueDate) task.dueDate = dueDate;
     if (location !== undefined) task.location = location;
 
     if (req.file) {
-      task.fileUrl = req.file.path || req.file.secure_url || req.file.url || req.file.location;
+      const uploadedUrl = await processUploadedFile(req.file);
+      if (uploadedUrl) {
+        task.fileUrl = uploadedUrl;
+      }
     }
 
     const updatedTask = await task.save();
 
-    // Trigger task completion email if status updated to DONE
     if (previousStatus !== 'DONE' && updatedTask.status === 'DONE') {
       sendTaskCompletionEmail(req.user.email, updatedTask);
     }
@@ -168,7 +202,8 @@ const updateTask = async (req, res) => {
 
     res.json(taskObj);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update task', error: error.message });
+    console.error('Update Task Error:', error);
+    res.status(400).json({ message: 'Failed to update task', error: error.message });
   }
 };
 
