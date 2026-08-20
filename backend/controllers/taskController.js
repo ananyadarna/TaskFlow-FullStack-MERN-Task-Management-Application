@@ -98,10 +98,10 @@ const createTask = async (req, res) => {
       return res.status(400).json({ message: 'Task title is required' });
     }
 
-    // Extract file attachment URL if uploaded
+    // Extract file attachment URL if uploaded from Cloudinary / Multer
     let fileUrl = null;
     if (req.file) {
-      fileUrl = req.file.path || req.file.secure_url || req.file.location;
+      fileUrl = req.file.path || req.file.secure_url || req.file.url || req.file.location;
     }
 
     const task = await Task.create({
@@ -151,7 +151,7 @@ const updateTask = async (req, res) => {
     if (location !== undefined) task.location = location;
 
     if (req.file) {
-      task.fileUrl = req.file.path || req.file.secure_url || req.file.location;
+      task.fileUrl = req.file.path || req.file.secure_url || req.file.url || req.file.location;
     }
 
     const updatedTask = await task.save();

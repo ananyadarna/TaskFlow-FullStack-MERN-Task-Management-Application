@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Calendar, Paperclip, Edit3, Trash2, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 import { WeatherBadge } from './WeatherBadge';
 
 export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
+  const [imageError, setImageError] = useState(false);
+
   // Format due date cleanly
   const formattedDueDate = task.dueDate
     ? new Date(task.dueDate).toLocaleDateString('en-US', {
@@ -12,12 +14,14 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
       })
     : null;
 
-  // Check if file attachment is an image
-  const isImageAttachment =
+  // Check if file attachment URL is an image or hosted on Cloudinary
+  const isLikelyImage =
     task.fileUrl &&
+    !imageError &&
     (/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i.test(task.fileUrl) ||
       task.fileUrl.includes('/image/upload/') ||
-      task.fileUrl.includes('cloudinary'));
+      task.fileUrl.includes('cloudinary') ||
+      task.fileUrl.includes('res.cloudinary.com'));
 
   // Status badge styling helper
   const getStatusBadge = (status) => {
@@ -77,12 +81,13 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
         )}
 
         {/* Image Attachment Preview */}
-        {task.fileUrl && isImageAttachment && (
+        {task.fileUrl && isLikelyImage && (
           <div className="mb-4 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 max-h-48 flex items-center justify-center">
             <a href={task.fileUrl} target="_blank" rel="noopener noreferrer" className="w-full h-full block">
               <img
                 src={task.fileUrl}
                 alt={task.title}
+                onError={() => setImageError(true)}
                 className="w-full h-44 object-cover hover:scale-105 transition duration-300"
               />
             </a>
@@ -104,8 +109,8 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
           {/* Weather Badge */}
           {task.location && <WeatherBadge location={task.location} weather={task.weather} />}
 
-          {/* Non-Image Document File Link */}
-          {task.fileUrl && !isImageAttachment && (
+          {/* Non-Image Document File Link or Image Error Fallback */}
+          {task.fileUrl && (!isLikelyImage || imageError) && (
             <a
               href={task.fileUrl}
               target="_blank"
@@ -113,7 +118,7 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
               className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition"
             >
               <Paperclip className="w-3.5 h-3.5" />
-              <span>Document Attachment</span>
+              <span>Attachment Link</span>
             </a>
           )}
         </div>
