@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const { cloudinary } = require('../config/cloudinary');
 const { sendTaskCreationEmail, sendTaskCompletionEmail } = require('../utils/emailService');
@@ -31,13 +32,29 @@ const processUploadedFile = async (file) => {
       return cloudinaryUrl;
     } catch (err) {
       console.error('Cloudinary Stream Upload Error:', err.message || err);
-      // Data URL fallback if Cloudinary stream errors out
       const base64Data = file.buffer.toString('base64');
       return `data:${file.mimetype};base64,${base64Data}`;
     }
   }
 
   return null;
+};
+
+// Helper to parse dates safely
+const parseSafeDate = (dateVal) => {
+  if (!dateVal || typeof dateVal !== 'string') return undefined;
+  const cleaned = dateVal.trim();
+  if (!cleaned) return undefined;
+
+  // Handle DD-MM-YYYY format
+  if (/^\d{2}-\d{2}-\d{4}$/.test(cleaned)) {
+    const [day, month, year] = cleaned.split('-');
+    const parsed = new Date(`${year}-${month}-${day}`);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  const parsed = new Date(cleaned);
+  return !isNaN(parsed.getTime()) ? parsed : undefined;
 };
 
 // @desc    Get logged-in user tasks with filtering & pagination
@@ -61,8 +78,8 @@ const getTasks = async (req, res) => {
 
     if (startDate || endDate) {
       query.dueDate = {};
-      if (startDate) query.dueDate.$gte = new Date(startDate);
-      if (endDate) query.dueDate.$lte = new Date(endDate);
+      if (startDate) query.dueDate.$gte = parseSafeDate(startDate);
+      if (endDate) query.dueDate.$lte = parseSafeDate(endDate);
     }
 
     const numericPage = Math.max(1, Number(page));
@@ -106,6 +123,10 @@ const getTasks = async (req, res) => {
 // @access  Private
 const getTaskById = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ message: 'Task not found - Invalid ID' });
+    }
+
     const task = await Task.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!task) {
@@ -142,7 +163,7 @@ const createTask = async (req, res) => {
       description,
       status,
       priority,
-      dueDate: dueDate || undefined,
+      dueDate: parseSafeDate(dueDate),
       location,
       fileUrl,
     });
@@ -166,6 +187,10 @@ const createTask = async (req, res) => {
 // @access  Private
 const updateTask = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ message: 'Task not found - Invalid ID' });
+    }
+
     const task = await Task.findOne({ _id: req.params.id, user: req.user._id });
 
     if (!task) {
@@ -179,7 +204,12 @@ const updateTask = async (req, res) => {
     if (description !== undefined) task.description = description;
     if (status) task.status = status;
     if (priority) task.priority = priority;
-    if (dueDate) task.dueDate = dueDate;
+
+    const parsedDate = parseSafeDate(dueDate);
+    if (parsedDate !== undefined) {
+      task.dueDate = parsedDate;
+    }
+
     if (location !== undefined) task.location = location;
 
     if (req.file) {
@@ -212,6 +242,10 @@ const updateTask = async (req, res) => {
 // @access  Private
 const deleteTask = async (req, res) => {
   try {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(404).json({ message: 'Task not found - Invalid ID' });
+    }
+
     const task = await Task.findOneAndDelete({ _id: req.params.id, user: req.user._id });
 
     if (!task) {
