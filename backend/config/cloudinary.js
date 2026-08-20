@@ -2,29 +2,32 @@ const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 
-// Configure Cloudinary credentials from environment
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+// Dynamically create Multer storage using active environment variables
+const getMulterUpload = () => {
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
-// Configure Multer storage to stream files directly to Cloudinary
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'task-attachments',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'],
-  },
-});
+  if (cloudName && cloudName !== 'your_cloudinary_cloud_name') {
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+    });
 
-// Fallback memory storage if Cloudinary keys are unconfigured
-const memoryStorage = multer.memoryStorage();
-const uploadStorage = process.env.CLOUDINARY_CLOUD_NAME ? storage : memoryStorage;
+    const storage = new CloudinaryStorage({
+      cloudinary: cloudinary,
+      params: {
+        folder: 'task-attachments',
+        allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'doc', 'docx'],
+      },
+    });
 
-const upload = multer({
-  storage: uploadStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-});
+    return multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
+  }
 
-module.exports = { cloudinary, upload };
+  // Fallback to memory storage if credentials are missing
+  return multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+};
+
+module.exports = { cloudinary, getMulterUpload };

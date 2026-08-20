@@ -1,13 +1,14 @@
+const dotenv = require('dotenv');
+
+// Load environment variables immediately before any other modules load
+dotenv.config();
+
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
-
-// Load environment variables
-dotenv.config();
 
 // Connect to MongoDB Database
 connectDB();
