@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Loader2 } from 'lucide-react';
+import { X, Upload, Loader2, Image as ImageIcon } from 'lucide-react';
 
 export const TaskFormModal = ({ isOpen, onClose, onSubmit, taskToEdit }) => {
   const [title, setTitle] = useState('');
@@ -9,6 +9,7 @@ export const TaskFormModal = ({ isOpen, onClose, onSubmit, taskToEdit }) => {
   const [dueDate, setDueDate] = useState('');
   const [location, setLocation] = useState('');
   const [file, setFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -20,10 +21,24 @@ export const TaskFormModal = ({ isOpen, onClose, onSubmit, taskToEdit }) => {
       setDueDate(taskToEdit.dueDate ? new Date(taskToEdit.dueDate).toISOString().split('T')[0] : '');
       setLocation(taskToEdit.location || '');
       setFile(null);
+      setPreviewUrl(taskToEdit.fileUrl || '');
     } else {
       resetForm();
     }
   }, [taskToEdit, isOpen]);
+
+  // Handle local file selection and create temporary object URL preview
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      if (selectedFile.type.startsWith('image/')) {
+        setPreviewUrl(URL.createObjectURL(selectedFile));
+      } else {
+        setPreviewUrl('');
+      }
+    }
+  };
 
   const resetForm = () => {
     setTitle('');
@@ -33,6 +48,7 @@ export const TaskFormModal = ({ isOpen, onClose, onSubmit, taskToEdit }) => {
     setDueDate('');
     setLocation('');
     setFile(null);
+    setPreviewUrl('');
   };
 
   if (!isOpen) return null;
@@ -42,7 +58,7 @@ export const TaskFormModal = ({ isOpen, onClose, onSubmit, taskToEdit }) => {
     setSubmitting(true);
 
     try {
-      // Build FormData payload to support file upload
+      // Build FormData payload for multipart file upload
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
@@ -159,17 +175,46 @@ export const TaskFormModal = ({ isOpen, onClose, onSubmit, taskToEdit }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               File Attachment (Image / PDF)
             </label>
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition text-sm text-gray-700">
-                <Upload className="w-4 h-4 text-indigo-600" />
-                <span>{file ? file.name : 'Choose File'}</span>
-                <input
-                  type="file"
-                  onChange={(e) => setFile(e.target.files[0])}
-                  className="hidden"
-                  accept="image/*,.pdf,.doc,.docx"
-                />
-              </label>
+
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition text-sm font-medium text-gray-700">
+                  <Upload className="w-4 h-4 text-indigo-600" />
+                  <span>{file ? file.name : 'Choose File'}</span>
+                  <input
+                    type="file"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx"
+                  />
+                </label>
+                {file && (
+                  <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
+                    ✓ File Selected
+                  </span>
+                )}
+              </div>
+
+              {/* Live Image Preview Thumbnail inside Modal */}
+              {previewUrl && (
+                <div className="relative border border-gray-200 rounded-lg p-2 bg-gray-50 flex items-center gap-3">
+                  <div className="w-16 h-16 rounded overflow-hidden bg-gray-200 shrink-0 flex items-center justify-center">
+                    <img
+                      src={previewUrl}
+                      alt="Attachment Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                    <ImageIcon className="w-6 h-6 text-gray-400 absolute" style={{ zIndex: 0 }} />
+                  </div>
+                  <div className="text-xs text-gray-600 flex-1 truncate">
+                    <p className="font-semibold text-gray-800">Attached Image Preview</p>
+                    <p className="truncate text-gray-500">{file ? file.name : 'Cloudinary Image'}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
