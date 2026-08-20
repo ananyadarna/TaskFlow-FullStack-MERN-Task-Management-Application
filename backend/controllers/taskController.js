@@ -168,7 +168,8 @@ const createTask = async (req, res) => {
       fileUrl,
     });
 
-    sendTaskCreationEmail(req.user.email, task);
+    // Await creation email notification
+    await sendTaskCreationEmail(req.user.email, task);
 
     const taskObj = task.toObject();
     if (taskObj.location) {
@@ -221,8 +222,10 @@ const updateTask = async (req, res) => {
 
     const updatedTask = await task.save();
 
+    // Await task completion email if status transitions to DONE
     if (previousStatus !== 'DONE' && updatedTask.status === 'DONE') {
-      sendTaskCompletionEmail(req.user.email, updatedTask);
+      console.log(`[Task Completion] Triggering completion email for task "${updatedTask.title}" to ${req.user.email}`);
+      await sendTaskCompletionEmail(req.user.email, updatedTask);
     }
 
     const taskObj = updatedTask.toObject();

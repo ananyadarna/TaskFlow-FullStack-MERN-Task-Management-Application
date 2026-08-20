@@ -2,15 +2,17 @@ const nodemailer = require('nodemailer');
 
 // Configure Nodemailer SMTP transporter
 const createTransporter = () => {
-  if (process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+  const host = (process.env.EMAIL_HOST || '').trim();
+  const user = (process.env.EMAIL_USER || '').trim();
+  const pass = (process.env.EMAIL_PASS || '').trim();
+  const port = Number(process.env.EMAIL_PORT) || 587;
+
+  if (host && user && pass && user !== 'your_email@gmail.com') {
     return nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: process.env.EMAIL_PORT === '465',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
+      host,
+      port,
+      secure: port === 465,
+      auth: { user, pass },
     });
   }
   return null;
@@ -39,12 +41,12 @@ const sendTaskCreationEmail = async (toEmail, task) => {
 
     if (transporter) {
       await transporter.sendMail(mailOptions);
-      console.log(`Creation email sent to ${toEmail}`);
+      console.log(`[Email Service] Creation email sent to ${toEmail}`);
     } else {
       console.log(`[Email Service Mock] Creation notification for task "${task.title}" to ${toEmail}`);
     }
   } catch (error) {
-    console.error('Failed to send task creation email:', error.message);
+    console.error('[Email Service Error] Failed to send task creation email:', error.message);
   }
 };
 
@@ -69,12 +71,12 @@ const sendTaskCompletionEmail = async (toEmail, task) => {
 
     if (transporter) {
       await transporter.sendMail(mailOptions);
-      console.log(`Completion email sent to ${toEmail}`);
+      console.log(`[Email Service] Completion email sent to ${toEmail}`);
     } else {
       console.log(`[Email Service Mock] Completion notification for task "${task.title}" to ${toEmail}`);
     }
   } catch (error) {
-    console.error('Failed to send task completion email:', error.message);
+    console.error('[Email Service Error] Failed to send task completion email:', error.message);
   }
 };
 
