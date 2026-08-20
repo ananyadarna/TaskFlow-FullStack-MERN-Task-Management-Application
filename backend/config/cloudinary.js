@@ -1,8 +1,7 @@
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const multer = require('multer');
 
-// Configure Cloudinary v2 SDK
+// Configure Cloudinary SDK with environment variables
 const configureCloudinary = () => {
   const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
   const apiKey = (process.env.CLOUDINARY_API_KEY || '').trim();
@@ -20,27 +19,14 @@ const configureCloudinary = () => {
   return false;
 };
 
-// Create Multer instance
-const getMulterUpload = () => {
-  const isCloudinaryConfigured = configureCloudinary();
+// Always configure Cloudinary
+configureCloudinary();
 
-  if (isCloudinaryConfigured) {
-    try {
-      const storage = new CloudinaryStorage({
-        cloudinary: cloudinary,
-        params: {
-          folder: 'task-attachments',
-          resource_type: 'auto',
-        },
-      });
-      return multer({ storage, limits: { fileSize: 10 * 1024 * 1024 } });
-    } catch (err) {
-      console.error('Cloudinary Storage Init Warning:', err.message);
-    }
-  }
+// Standard Memory Storage Multer Uploader
+// Avoids empty-stream 400 errors when forms are submitted without a file
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+});
 
-  // Memory fallback storage
-  return multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
-};
-
-module.exports = { cloudinary, getMulterUpload };
+module.exports = { cloudinary, upload };
