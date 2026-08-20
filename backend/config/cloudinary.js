@@ -4,9 +4,9 @@ const multer = require('multer');
 
 // Dynamically create Multer storage using active environment variables
 const getMulterUpload = () => {
-  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-  const apiKey = process.env.CLOUDINARY_API_KEY;
-  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME ? process.env.CLOUDINARY_CLOUD_NAME.trim() : '';
+  const apiKey = process.env.CLOUDINARY_API_KEY ? process.env.CLOUDINARY_API_KEY.trim() : '';
+  const apiSecret = process.env.CLOUDINARY_API_SECRET ? process.env.CLOUDINARY_API_SECRET.trim() : '';
 
   if (cloudName && cloudName !== 'your_cloudinary_cloud_name') {
     cloudinary.config({
@@ -19,7 +19,7 @@ const getMulterUpload = () => {
       cloudinary: cloudinary,
       params: {
         folder: 'task-attachments',
-        allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'gif', 'pdf', 'doc', 'docx'],
+        resource_type: 'auto',
       },
     });
 

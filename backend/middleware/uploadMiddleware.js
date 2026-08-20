@@ -8,10 +8,10 @@ const uploadSingleFile = (fieldName) => {
 
     singleUpload(req, res, (err) => {
       if (err) {
-        console.error('Multer / Cloudinary Upload Error:', err.message);
+        console.error('Multer / Cloudinary Upload Error:', err);
         return res.status(400).json({
-          message: 'File upload failed',
-          error: err.message,
+          message: err.message || 'File upload failed',
+          error: err.message || err,
         });
       }
       next();
