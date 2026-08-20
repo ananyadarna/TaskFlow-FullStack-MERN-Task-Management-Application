@@ -12,6 +12,13 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
       })
     : null;
 
+  // Check if file attachment is an image
+  const isImageAttachment =
+    task.fileUrl &&
+    (/\.(jpg|jpeg|png|webp|gif|svg)($|\?)/i.test(task.fileUrl) ||
+      task.fileUrl.includes('/image/upload/') ||
+      task.fileUrl.includes('cloudinary'));
+
   // Status badge styling helper
   const getStatusBadge = (status) => {
     switch (status) {
@@ -49,9 +56,9 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
   };
 
   return (
-    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition flex flex-col justify-between overflow-hidden">
       <div>
-        {/* Header: Title, Status, Priority */}
+        {/* Header: Title, Priority, Status */}
         <div className="flex items-start justify-between gap-3 mb-2">
           <h3 className={`font-semibold text-lg text-gray-900 ${task.status === 'DONE' ? 'line-through text-gray-400' : ''}`}>
             {task.title}
@@ -64,14 +71,27 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
 
         {/* Task Description */}
         {task.description && (
-          <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+          <p className="text-gray-600 text-sm mb-3 line-clamp-3">
             {task.description}
           </p>
+        )}
+
+        {/* Image Attachment Preview */}
+        {task.fileUrl && isImageAttachment && (
+          <div className="mb-4 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 max-h-48 flex items-center justify-center">
+            <a href={task.fileUrl} target="_blank" rel="noopener noreferrer" className="w-full h-full block">
+              <img
+                src={task.fileUrl}
+                alt={task.title}
+                className="w-full h-44 object-cover hover:scale-105 transition duration-300"
+              />
+            </a>
+          </div>
         )}
       </div>
 
       {/* Footer Meta & Actions */}
-      <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
+      <div className="pt-3 border-t border-gray-100 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {/* Due Date */}
           {formattedDueDate && (
@@ -84,8 +104,8 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
           {/* Weather Badge */}
           {task.location && <WeatherBadge location={task.location} weather={task.weather} />}
 
-          {/* Cloudinary File Attachment */}
-          {task.fileUrl && (
+          {/* Non-Image Document File Link */}
+          {task.fileUrl && !isImageAttachment && (
             <a
               href={task.fileUrl}
               target="_blank"
@@ -93,13 +113,13 @@ export const TaskCard = ({ task, onEdit, onDelete, onStatusToggle }) => {
               className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-md transition"
             >
               <Paperclip className="w-3.5 h-3.5" />
-              <span>Attachment</span>
+              <span>Document Attachment</span>
             </a>
           )}
         </div>
 
         {/* Card Action Buttons */}
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between pt-1">
           <button
             onClick={() => onStatusToggle(task)}
             className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition ${
